@@ -15,6 +15,7 @@ Outputs (outputs/<config>/route_experiment/<part>/):
   results.csv              per-moment errors with and without route
   error_over_time.png      both errors along the drive
   route_experiment.mp4     camera + map with all three paths
+  with_route_vs_human.mp4  only the model (with route) vs the human
 """
 import argparse
 import csv
@@ -101,7 +102,7 @@ if todo:
 # ---------------------------------------------------------------------------
 # Stage 2: compare, plot, and make the video
 # ---------------------------------------------------------------------------
-rows, frames = [], []
+rows, frames = [], {"three": [], "two": []}
 for i in indices:
     sample, raw = scene.decoded(i), scene.raw(i)
     saved = np.load(pred_dir / f"{i:04d}.npz")
@@ -117,26 +118,37 @@ for i in indices:
     row["route_helps_m"] = row["err_without_route_m"] - row["err_with_route_m"]
     rows.append(row)
 
-    fig, (ax_cam, ax_bev) = plt.subplots(1, 2, figsize=(16, 8), dpi=80,
-                                         gridspec_kw={"width_ratios": [1.6, 1]})
-    ax_cam.imshow(camera_view(raw, saved["with_xy"], gt_xy, valid, cfg.ground_z_m,
-                              cfg.front_camera_index, extra=[(saved["without_xy"], ORANGE)]))
-    ax_cam.axis("off")
-    plot_bev(ax_bev, sample, saved["with_xy"], gt_xy, valid, pred_label="with route",
-             extra=[(saved["without_xy"], ORANGE, "without route")])
-    ax_bev.legend(loc="lower right")
-    fig.suptitle(f"t = {i / 10:4.1f} s   speed {row['speed_kmh']:3.0f} km/h   "
-                 f"error next 3 s:  with route {row['err_with_route_m']:.2f} m  |  "
-                 f"without route {row['err_without_route_m']:.2f} m\n"
-                 "purple = human,  green = AutoE2E with route,  orange = AutoE2E without route",
-                 fontsize=13)
-    fig.text(0.01, 0.01, cfg.attribution, fontsize=9, color="gray")
-    fig.tight_layout()
-    fig.canvas.draw()
-    frame = np.asarray(fig.canvas.buffer_rgba())[:, :, :3].copy()
-    plt.close(fig)
-    imageio.imwrite(frame_dir / f"{i:04d}.png", frame)
-    frames.append(frame)
+    # Video 1: all three paths. Video 2: only the model with route vs the human.
+    for name, show_without in (("three", True), ("two", False)):
+        extra_cam = [(saved["without_xy"], ORANGE)] if show_without else []
+        extra_bev = [(saved["without_xy"], ORANGE, "without route")] if show_without else []
+        fig, (ax_cam, ax_bev) = plt.subplots(1, 2, figsize=(16, 8), dpi=80,
+                                             gridspec_kw={"width_ratios": [1.6, 1]})
+        ax_cam.imshow(camera_view(raw, saved["with_xy"], gt_xy, valid, cfg.ground_z_m,
+                                  cfg.front_camera_index, extra=extra_cam))
+        ax_cam.axis("off")
+        plot_bev(ax_bev, sample, saved["with_xy"], gt_xy, valid,
+                 pred_label="AutoE2E (with route)" if not show_without else "with route",
+                 extra=extra_bev)
+        ax_bev.legend(loc="lower right")
+        if show_without:
+            title = (f"t = {i / 10:4.1f} s   speed {row['speed_kmh']:3.0f} km/h   "
+                     f"error next 3 s:  with route {row['err_with_route_m']:.2f} m  |  "
+                     f"without route {row['err_without_route_m']:.2f} m\n"
+                     "purple = human,  green = AutoE2E with route,  orange = AutoE2E without route")
+        else:
+            title = (f"t = {i / 10:4.1f} s    speed {row['speed_kmh']:3.0f} km/h    "
+                     f"avg error next 3 s: {row['err_with_route_m']:.2f} m\n"
+                     "purple = human driver,  green = AutoE2E (with route)")
+        fig.suptitle(title, fontsize=13)
+        fig.text(0.01, 0.01, cfg.attribution, fontsize=9, color="gray")
+        fig.tight_layout()
+        fig.canvas.draw()
+        frame = np.asarray(fig.canvas.buffer_rgba())[:, :, :3].copy()
+        plt.close(fig)
+        if show_without:
+            imageio.imwrite(frame_dir / f"{i:04d}.png", frame)
+        frames[name].append(frame)
 
 with (out_dir / "results.csv").open("w", newline="") as f:
     writer = csv.DictWriter(f, fieldnames=list(rows[0]))
@@ -144,8 +156,9 @@ with (out_dir / "results.csv").open("w", newline="") as f:
     writer.writerows(rows)
 
 fps = 10 / args.step
-imageio.mimwrite(out_dir / "route_experiment.mp4", frames, fps=fps, codec="libx264", quality=8,
-                 macro_block_size=16, ffmpeg_params=["-g", str(max(1, round(fps)))])
+for name, video in (("three", "route_experiment.mp4"), ("two", "with_route_vs_human.mp4")):
+    imageio.mimwrite(out_dir / video, frames[name], fps=fps, codec="libx264", quality=8,
+                     macro_block_size=16, ffmpeg_params=["-g", str(max(1, round(fps)))])
 
 t = np.array([r["t_s"] for r in rows])
 w = np.array([r["err_with_route_m"] for r in rows])
@@ -170,4 +183,4 @@ print(f"Route helped at {np.mean(diff > 0.05):.0%} of moments, hurt at {np.mean(
       f"no real difference (<5 cm) at {np.mean(np.abs(diff) <= 0.05):.0%}")
 best = int(np.argmax(np.where(ok, wo - w, -np.inf)))
 print(f"Biggest help: t = {t[best]:.1f} s ({wo[best]:.2f} m without -> {w[best]:.2f} m with)")
-print(f"\nSaved: {out_dir}/results.csv, error_over_time.png, route_experiment.mp4")
+print(f"\nSaved: {out_dir}/results.csv, error_over_time.png, route_experiment.mp4, with_route_vs_human.mp4")
