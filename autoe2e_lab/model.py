@@ -20,11 +20,10 @@ from training.reactive_stage_runner import (  # noqa: E402
 from .config import Config
 
 
-def load_model(cfg: Config, device: str = "cuda") -> AutoE2E:
-    """Build the v1.0 architecture and copy in the trained weights (strict match)."""
-    payload = torch.load(cfg.checkpoint, map_location="cpu", weights_only=True)
+def _build(payload: dict) -> AutoE2E:
+    """The v1.0 architecture with RANDOM weights (nothing learned yet)."""
     config = payload["config"]
-    model = AutoE2E(
+    return AutoE2E(
         backbone=config["backbone"],
         embed_dim=config["embed_dim"],
         is_pretrained=False,
@@ -33,7 +32,17 @@ def load_model(cfg: Config, device: str = "cuda") -> AutoE2E:
             num_views=config["num_views"],
         ),
     )
-    model.load_state_dict(payload["model_state_dict"], strict=True)
+
+
+def load_model(cfg: Config, device: str = "cuda", trained: bool = True) -> AutoE2E:
+    """Build the v1.0 architecture and copy in the trained weights (strict match).
+
+    trained=False skips the weights: same structure, random numbers ("empty brain").
+    """
+    payload = torch.load(cfg.checkpoint, map_location="cpu", weights_only=True)
+    model = _build(payload)
+    if trained:
+        model.load_state_dict(payload["model_state_dict"], strict=True)
     return model.to(device).eval()
 
 
