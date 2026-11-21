@@ -1,4 +1,4 @@
-"""Run the model on every moment of a scene, then make a video.
+"""Run the model on every moment of a scene, then make a video (autoe2e_realtime.mp4).
 
 Stage 1 (slow, ~25 s per moment on an RTX 5060 laptop): run the model and SAVE
 each prediction. Re-running skips moments that are already saved.
@@ -75,19 +75,14 @@ for i in indices:
     imageio.imwrite(frame_dir / f"{i:04d}.png", frame)
     frames.append(frame)
 
-fps = 10 / args.step
-for name, speed in [("realtime", fps), ("slow_4x", fps / 4)]:
-    path = out_dir / f"autoe2e_{name}.mp4"
-    # -g N = a full keyframe at least every N frames (here: every second of video).
-    # Without it, H.264 stores one full picture and then only "changes"; at 2 fps almost
-    # everything changes, and players like VLC show ghost/broken lines when seeking.
-    keyframe_every = str(max(1, round(speed)))
-    imageio.mimwrite(path, frames, fps=speed, codec="libx264", quality=8, macro_block_size=16,
-                     ffmpeg_params=["-g", keyframe_every])
-    print(f"Saved {path}  ({len(frames) / speed:.1f} s long)")
-gif = out_dir / "autoe2e_slow.gif"
-imageio.mimwrite(gif, [f[::2, ::2] for f in frames], duration=1000 / (fps / 4), loop=0)
-print(f"Saved {gif}")
+fps = 10 / args.step  # plays at the real speed of the drive
+path = out_dir / "autoe2e_realtime.mp4"
+# -g N = a full keyframe at least every N frames (here: every second of video).
+# Without it, H.264 stores one full picture and then only "changes"; at 2 fps almost
+# everything changes, and players like VLC show ghost/broken lines when seeking.
+imageio.mimwrite(path, frames, fps=fps, codec="libx264", quality=8, macro_block_size=16,
+                 ffmpeg_params=["-g", str(max(1, round(fps)))])
+print(f"Saved {path}  ({len(frames) / fps:.1f} s long)")
 
 e = np.array(errors_3s)
 e = e[np.isfinite(e)]

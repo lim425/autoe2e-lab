@@ -101,7 +101,7 @@ More scenes: `python scripts/download_scene.py --list`, then `python scripts/dow
 python scripts/01_load_checkpoint.py      # weights load with an exact layer match
 python scripts/02_inspect_sample.py       # look at the inputs; no model involved
 python scripts/03_infer_one_sample.py     # one prediction: error + camera/map picture
-python scripts/04_make_video.py           # every moment of a scene -> mp4 + gif
+python scripts/04_make_video.py           # every moment of a scene -> autoe2e_realtime.mp4
 python scripts/04_make_video.py --part <part> --step 5   # longer scene at 2 Hz
 ```
 
