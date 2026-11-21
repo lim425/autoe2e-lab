@@ -42,12 +42,21 @@ def to_batch(sample: dict, device: str = "cuda") -> dict:
     return {k: v.unsqueeze(0).to(device) if torch.is_tensor(v) else v for k, v in sample.items()}
 
 
+def apply_input_rules(batch: dict, cfg: Config) -> dict:
+    """Dataset-specific input rules, applied before EVERY model call.
+
+    For KITScenes this hides the newest acceleration value in the motion history,
+    exactly as the authors do in training and evaluation.
+    """
+    stage = ReactiveTrainingStage(cfg.training_stage)
+    return apply_reactive_egomotion_policy(batch, reactive_training_policy(stage))
+
+
 @torch.no_grad()
 def predict(model: AutoE2E, batch: dict, cfg: Config, device: str = "cuda") -> dict:
     """One forward pass -> 64 x (acceleration, curvature) and the integrated XY path."""
-    stage = ReactiveTrainingStage(cfg.training_stage)
     # 1. Dataset-specific input rules (e.g. KITScenes hides the newest acceleration).
-    batch = apply_reactive_egomotion_policy(batch, reactive_training_policy(stage))
+    batch = apply_input_rules(batch, cfg)
     # 2. Camera geometry: wrap the 3x4 calibration matrices in projection operators.
     dev = torch.device(device)
     projection, geometry_type = resolve_reactive_batch_projection(batch, None, "pseudo", device=dev)
@@ -80,3 +89,53 @@ def predict(model: AutoE2E, batch: dict, cfg: Config, device: str = "cuda") -> d
     # 4. Integrate controls into an XY path, starting at the current speed v0.
     pred_xy, _, _ = integrate_controls_torch(controls, batch["initial_speed_mps"])
     return {"controls": controls[0].cpu(), "pred_xy": pred_xy[0].cpu()}
+
+
+def _to_path(controls: torch.Tensor, initial_speed: torch.Tensor) -> dict:
+    controls = controls.reshape(1, 64, 2)
+    pred_xy, _, _ = integrate_controls_torch(controls, initial_speed)
+    return {"controls": controls[0].cpu(), "pred_xy": pred_xy[0].cpu()}
+
+
+@torch.no_grad()
+def predict_route_ablation(model: AutoE2E, batch: dict, cfg: Config, device: str = "cuda") -> dict:
+    """Same moment, two answers: WITH the route and WITHOUT it.
+
+    Pass 1 runs the full model and also returns the camera top-down picture (image BEV).
+    Pass 2 reuses that picture (the cameras did not change) and only switches the route
+    off with the model's own validity gate (route_valid=False multiplies the route by 0).
+    This is the authors' "route-zero" counterfactual; it skips the slow camera part.
+    """
+    batch = apply_input_rules(batch, cfg)
+    dev = torch.device(device)
+    projection, geometry_type = resolve_reactive_batch_projection(batch, None, "pseudo", device=dev)
+    front_projection = resolve_reactive_front_projection(batch, geometry_type, device=dev, required=True)
+    history_tiles, history_projections = resolve_reactive_camera_history(
+        batch, geometry_type, device=dev, required=True
+    )
+    common = dict(map_valid=batch["map_valid"], mode="infer",
+                  compute_bev_segmentation=False, compute_route_reconstruction=False)
+    inputs = (batch["visual_tiles"], batch["map_context"], batch["visual_history"], batch["egomotion_history"])
+
+    # Pass 1: full model, route as given by the dataset; keep the camera top-down picture.
+    with_route, aux = model(
+        *inputs, route_mask=batch["route_mask"], route_valid=batch["route_valid"],
+        projection=projection, geometry_type=geometry_type,
+        camera_history_tiles=history_tiles, history_projections=history_projections,
+        front_camera_tile=batch.get("front_camera_tile"), front_projection=front_projection,
+        return_auxiliary=True, return_image_bev=True, **common,
+    )
+    image_bev = aux["_evaluation_image_bev"]
+
+    # Pass 2: same camera picture, route switched off.
+    route_off = torch.zeros_like(batch["route_valid"], dtype=torch.bool)
+    without_route = model(
+        *inputs, route_mask=batch["route_mask"], route_valid=route_off,
+        precomputed_image_bev=image_bev, **common,
+    )
+    if isinstance(without_route, tuple):
+        without_route = without_route[0]
+    speed = batch["initial_speed_mps"]
+    return {"with_route": _to_path(with_route, speed),
+            "without_route": _to_path(without_route, speed),
+            "image_bev": image_bev}
