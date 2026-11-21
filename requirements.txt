@@ -1,0 +1,12 @@
+# Install torch + torchvision FIRST from the PyTorch CUDA 12.8 index (see README),
+# then install this file WITH the lock so pip can never swap torch:
+#   pip install -c constraints.txt -r requirements.txt
+timm==1.0.27
+numpy==2.2.6
+PyYAML==6.0.3
+webdataset==1.0.2
+pyproj==3.7.2
+huggingface_hub==2.4.0
+matplotlib==3.11.2
+imageio==2.38.2
+imageio-ffmpeg==0.8.1

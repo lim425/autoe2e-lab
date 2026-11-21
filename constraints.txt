@@ -1,0 +1,5 @@
+# Lock file: torch and torchvision must stay this exact matching CUDA 12.8 pair.
+# CUDA 12.8 builds are required for RTX 50xx (Blackwell, sm_120) GPUs.
+# Use with:  pip install -c constraints.txt <packages>
+torch==2.7.1+cu128
+torchvision==0.22.1+cu128

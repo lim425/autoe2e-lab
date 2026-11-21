@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "autoe2e-lab"
+version = "0.1.0"
+description = "Run the AutoE2E end-to-end driving model on recorded data and visualise its predictions."
+requires-python = ">=3.12,<3.13"
+# Dependencies live in requirements.txt + constraints.txt (torch needs a special index).
+
+[tool.setuptools]
+packages = ["autoe2e_lab"]

@@ -1,0 +1,15 @@
+# Python environment and build leftovers
+.venv/
+__pycache__/
+*.egg-info/
+
+# Generated results (pictures, videos, cached predictions)
+outputs/
+
+# Never commit model weights or dataset files (large, and licensed separately)
+*.pt
+*.pth
+*.tar
+*.npz
+*.mp4
+*.gif

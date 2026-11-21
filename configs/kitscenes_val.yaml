@@ -1,0 +1,21 @@
+# Everything that is specific to ONE dataset lives here.
+# Adding another dataset later = add another file like this one.
+# Relative paths are relative to the autoe2e-lab repo root.
+
+name: kitscenes_val
+
+# Downloaded files (see README "Download data")
+data_root: ../autoe2e_data/hf
+checkpoint: models/kitscenes-epoch-5/checkpoint.pt   # model fine-tuned on this camera rig
+dataset_dir: datasets/kitscenes-val/v3.5             # AutoE2E packed format (WebDataset .tar)
+default_part: part-0b06571c5556d39d                  # one scene ("part"); 20 moments = 2 s
+
+# How the authors evaluate this dataset (selects dataset-specific input rules)
+training_stage: kitscenes_finetune
+
+# Camera drawing
+ground_z_m: -2.1        # road surface relative to the car's reference point (KIT car)
+front_camera_index: 0   # cam_0 is the front camera, stored at 1024x1024
+
+# Credit shown on every picture/video (the dataset licence requires attribution)
+attribution: "Images: KITScenes-Multimodal (KIT), CC BY-NC 4.0"
