@@ -100,6 +100,37 @@ def predict(model: AutoE2E, batch: dict, cfg: Config, device: str = "cuda") -> d
     return {"controls": controls[0].cpu(), "pred_xy": pred_xy[0].cpu()}
 
 
+@torch.no_grad()
+def predict_with_internals(model: AutoE2E, batch: dict, cfg: Config, device: str = "cuda") -> dict:
+    """Like predict(), but also return what the model builds inside.
+
+    image_bev:        the model's own top-down picture, built ONLY from the cameras
+                      (before the map and route are mixed in): [C, H, W] numbers per cell
+    bev_probabilities: the built-in helper head's reading of that picture: for each of the
+                      8 categories (BEV_CLASSES), the chance (0..1) that a cell contains it
+    """
+    batch = apply_input_rules(batch, cfg)
+    dev = torch.device(device)
+    projection, geometry_type = resolve_reactive_batch_projection(batch, None, "pseudo", device=dev)
+    front_projection = resolve_reactive_front_projection(batch, geometry_type, device=dev, required=True)
+    history_tiles, history_projections = resolve_reactive_camera_history(
+        batch, geometry_type, device=dev, required=True
+    )
+    controls, aux = model(
+        batch["visual_tiles"], batch["map_context"], batch["visual_history"], batch["egomotion_history"],
+        route_mask=batch["route_mask"], map_valid=batch["map_valid"], route_valid=batch["route_valid"],
+        projection=projection, geometry_type=geometry_type,
+        camera_history_tiles=history_tiles, history_projections=history_projections,
+        front_camera_tile=batch.get("front_camera_tile"), front_projection=front_projection,
+        mode="infer", return_auxiliary=True, return_image_bev=True,
+        compute_bev_segmentation=True, compute_route_reconstruction=False,
+    )
+    out = _to_path(controls, batch["initial_speed_mps"])
+    out["image_bev"] = aux["_evaluation_image_bev"][0].float().cpu()
+    out["bev_probabilities"] = aux["bev_segmentation_logits"][0].float().sigmoid().cpu()
+    return out
+
+
 def _to_path(controls: torch.Tensor, initial_speed: torch.Tensor) -> dict:
     controls = controls.reshape(1, 64, 2)
     pred_xy, _, _ = integrate_controls_torch(controls, initial_speed)
