@@ -101,11 +101,26 @@ More scenes: `python scripts/download_scene.py --list`, then `python scripts/dow
 python scripts/01_load_checkpoint.py      # weights load with an exact layer match
 python scripts/02_inspect_sample.py       # look at the inputs; no model involved
 python scripts/03_infer_one_sample.py     # one prediction: error + camera/map picture
-python scripts/04_make_video.py           # every moment of a scene -> autoe2e_realtime.mp4
-python scripts/04_make_video.py --part <part> --step 5   # longer scene at 2 Hz
+python scripts/04_make_video.py --part <part> --step 5     # video at 2 Hz (every 5th moment)
+python scripts/04_make_video.py --part <part> --step 1     # video at 10 Hz (every moment)
+python scripts/05_route_experiment.py --part <part> --step 5   # with vs without route
+python scripts/06_sanity_checks.py        # repeat run, random weights, black/shuffled cameras
+python scripts/07_look_inside.py          # the model's own camera top-down picture
+python scripts/scan_routes.py             # which scenes have a route (reads ~2 MB per scene)
 ```
 
-Results are written to `outputs/<config>/`.
+Results are written to `outputs/<config>/`. Videos, CSVs and plots carry the rate in their
+name (`..._2hz.mp4`, `..._10hz.mp4`), so runs at different rates never overwrite each other.
+Predictions are cached per moment and shared between rates: a 10 Hz run reuses every
+moment a 2 Hz run already computed.
+
+Long runs (hours) are best started detached from the terminal:
+
+```bash
+mkdir -p outputs/logs
+nohup python scripts/04_make_video.py --part <part> --step 1 > outputs/logs/<name>.log 2>&1 &
+tail -f outputs/logs/<name>.log
+```
 
 **Speed:** about 24 s per moment on an RTX 5060 Laptop, using ~2.3 GB of GPU memory.
 Almost all of that time is the BEVFormer camera-to-BEV encoder, which runs 8 times per

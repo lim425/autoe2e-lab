@@ -1,4 +1,4 @@
-"""Run the model on every moment of a scene, then make a video (autoe2e_realtime.mp4).
+"""Run the model on every moment of a scene, then make a video (autoe2e_realtime_<rate>.mp4).
 
 Stage 1 (slow, ~25 s per moment on an RTX 5060 laptop): run the model and SAVE
 each prediction. Re-running skips moments that are already saved.
@@ -27,6 +27,7 @@ parser.add_argument("--config", default=None, help="dataset config (default: kit
 parser.add_argument("--part", default=None, help="scene to use (default: from config)")
 parser.add_argument("--step", type=int, default=1, help="use every Nth moment")
 args = parser.parse_args()
+rate = f"{round(10 / args.step, 2):g}hz".replace(".", "p")  # e.g. 10hz, 2hz: in every output name
 
 cfg = load_config(args.config) if args.config else load_config()
 part = args.part or cfg.default_part
@@ -76,7 +77,7 @@ for i in indices:
     frames.append(frame)
 
 fps = 10 / args.step  # plays at the real speed of the drive
-path = out_dir / "autoe2e_realtime.mp4"
+path = out_dir / f"autoe2e_realtime_{rate}.mp4"
 # -g N = a full keyframe at least every N frames (here: every second of video).
 # Without it, H.264 stores one full picture and then only "changes"; at 2 fps almost
 # everything changes, and players like VLC show ghost/broken lines when seeking.

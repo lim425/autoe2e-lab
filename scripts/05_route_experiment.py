@@ -12,10 +12,10 @@ experiment costs about the same as a normal run.
     python scripts/05_route_experiment.py --part part-d646a7f28b51e27f --step 5
 
 Outputs (outputs/<config>/route_experiment/<part>/):
-  results.csv              per-moment errors with and without route
-  error_over_time.png      both errors along the drive
-  route_experiment.mp4     camera + map with all three paths
-  with_route_vs_human.mp4  only the model (with route) vs the human
+  results_<rate>.csv              per-moment errors with and without route   (<rate> = 10hz, 2hz, ...)
+  error_over_time_<rate>.png      both errors along the drive
+  route_experiment_<rate>.mp4     camera + map with all three paths
+  with_route_vs_human_<rate>.mp4  only the model (with route) vs the human
 """
 import argparse
 import csv
@@ -40,6 +40,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--part", required=True)
 parser.add_argument("--step", type=int, default=5, help="use every Nth moment")
 args = parser.parse_args()
+rate = f"{round(10 / args.step, 2):g}hz".replace(".", "p")  # e.g. 10hz, 2hz: in every output name
 
 cfg = load_config()
 scene = PackedScene(cfg.dataset_dir, args.part)
@@ -150,13 +151,13 @@ for i in indices:
             imageio.imwrite(frame_dir / f"{i:04d}.png", frame)
         frames[name].append(frame)
 
-with (out_dir / "results.csv").open("w", newline="") as f:
+with (out_dir / f"results_{rate}.csv").open("w", newline="") as f:
     writer = csv.DictWriter(f, fieldnames=list(rows[0]))
     writer.writeheader()
     writer.writerows(rows)
 
 fps = 10 / args.step
-for name, video in (("three", "route_experiment.mp4"), ("two", "with_route_vs_human.mp4")):
+for name, video in (("three", f"route_experiment_{rate}.mp4"), ("two", f"with_route_vs_human_{rate}.mp4")):
     imageio.mimwrite(out_dir / video, frames[name], fps=fps, codec="libx264", quality=8,
                      macro_block_size=16, ffmpeg_params=["-g", str(max(1, round(fps)))])
 
@@ -172,7 +173,7 @@ ax.set_title(f"{args.part}: does the route help?")
 ax.grid(alpha=0.3)
 ax.legend()
 fig.tight_layout()
-fig.savefig(out_dir / "error_over_time.png", dpi=90)
+fig.savefig(out_dir / f"error_over_time_{rate}.png", dpi=90)
 
 ok = np.isfinite(w) & np.isfinite(wo) & np.array([r["route_valid"] for r in rows])
 diff = wo[ok] - w[ok]
@@ -183,4 +184,5 @@ print(f"Route helped at {np.mean(diff > 0.05):.0%} of moments, hurt at {np.mean(
       f"no real difference (<5 cm) at {np.mean(np.abs(diff) <= 0.05):.0%}")
 best = int(np.argmax(np.where(ok, wo - w, -np.inf)))
 print(f"Biggest help: t = {t[best]:.1f} s ({wo[best]:.2f} m without -> {w[best]:.2f} m with)")
-print(f"\nSaved: {out_dir}/results.csv, error_over_time.png, route_experiment.mp4, with_route_vs_human.mp4")
+print(f"\nSaved in {out_dir}: results_{rate}.csv, error_over_time_{rate}.png, "
+      f"route_experiment_{rate}.mp4, with_route_vs_human_{rate}.mp4")
