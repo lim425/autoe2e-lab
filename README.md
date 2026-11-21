@@ -22,8 +22,50 @@ Offline replay of recorded data only. Nothing here controls a vehicle.
 |---|---|---|
 | KITScenes-Multimodal validation (AutoE2E packed v3.5) | `kitscenes-epoch-5` | ✅ working |
 
-Measured on one 2 s scene (20 moments): mean error over the next 3 s = **0.78 m**
-(the AutoE2E authors report 0.744 m over the full validation set).
+## Findings
+
+All numbers are **open-loop**: the car always follows the recorded human, and at each
+moment the model predicts the next seconds. "Error" is ADE @ 3 s, the average distance
+between the predicted and the real path over the next 3 s. Few drives were tested, so
+treat these as observations, not statistics. Raw numbers and plots: [`results/`](results/).
+
+**1. Accuracy is in line with the authors.** Mean ADE @ 3 s on three drives:
+0.78 m (2 s, 20 moments), 0.85 m (31 s, 62 moments), 0.79 m (51 s, 102 moments). The
+authors report 0.744 m on 202 keyframes of the full validation set. The model is very good
+on single-road stretches (0.10–0.20 m) and worst at forks and roundabouts (up to ~2 m).
+
+**2. Route data is missing for 17 of 140 validation drives**, including the 5 longest
+(`scripts/scan_routes.py`). On those drives the model has to guess at junctions and
+sometimes takes the wrong branch or roundabout exit.
+
+**3. Route on/off.** Same moments, with the dataset's route and with the route switched off
+through the model's own validity gate. The authors' paper notes this paired comparison is
+not yet published.
+
+| Drive | Moments | With route | Without route | Route helped / hurt |
+|---|---|---|---|---|
+| `part-d646a7f28b51e27f` (34 s, 10 Hz) | 340 | **0.69 m** | 0.76 m | 46% / 31% |
+| `part-8028dd4a50d07877` (31 s, 2 Hz) | 62 | 0.78 m | **0.74 m** | 53% / 29% |
+
+The route clearly changes the output and helps most at turns where there is a choice
+(up to 1.2 m better), but the average gain is small and not consistent between drives. In
+both drives the route sometimes made the model turn too sharply in left turns (worst
+case 2.35 m with route vs 0.37 m without).
+
+**4. Cameras matter less than expected** (`scripts/06_sanity_checks.py`, 3 moments):
+normal 0.56 m, identical repeat run, random weights 4.40 m, all cameras black 0.72 m,
+cameras shuffled 0.66 m. Blacking out the cameras changes the model's internal camera BEV
+by ~70% but the trajectory only a little, so the planner leans on the map, the route and
+the ego-motion history. A known limit of open-loop evaluation: low error does not prove the
+model reacts to what only cameras can see.
+
+**5. The BEV segmentation head is untrained in the released checkpoint** (training loss
+0.0, normalisation layers at their initial values), so its output (~0.5 everywhere) cannot
+be used to inspect what the model sees.
+
+**6. Speed: ~24 s per moment (~0.04 FPS)** on an RTX 5060 Laptop in FP32, ~2.3 GB GPU
+memory. The FPS tables in the AutoE2E repo (19–76 FPS) are for lighter SwinV2/ConvNeXt
+configurations without the BEVFormer T8 history, not for the released checkpoint.
 
 ## Layout
 
