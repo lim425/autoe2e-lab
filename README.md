@@ -9,6 +9,9 @@ planned route and the car's recent motion, and outputs the next 6.4 s of driving
 64 steps of acceleration and curvature. This repo loads the released checkpoint, feeds it
 scenes from the KITScenes validation set, and draws the result:
 
+![Uploading with_route_vs_human_10hz.gif…]()
+
+
 - **purple** = the human driver's real path (ground truth)
 - **green** = the AutoE2E prediction
 
