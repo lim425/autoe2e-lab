@@ -9,7 +9,7 @@ planned route and the car's recent motion, and outputs the next 6.4 s of driving
 64 steps of acceleration and curvature. This repo loads the released checkpoint, feeds it
 scenes from the KITScenes validation set, and draws the result:
 
-![Uploading with_route_vs_human_10hz.gif…]()
+<img width="400" height="200" alt="with_route_vs_human_10hz" src="https://github.com/user-attachments/assets/1229947c-8653-45b3-be37-9f4feae02b16" />
 
 
 - **purple** = the human driver's real path (ground truth)
@@ -55,18 +55,7 @@ The route clearly changes the output and helps most at turns where there is a ch
 both drives the route sometimes made the model turn too sharply in left turns (worst
 case 2.35 m with route vs 0.37 m without).
 
-**4. Cameras matter less than expected** (`scripts/06_sanity_checks.py`, 3 moments):
-normal 0.56 m, identical repeat run, random weights 4.40 m, all cameras black 0.72 m,
-cameras shuffled 0.66 m. Blacking out the cameras changes the model's internal camera BEV
-by ~70% but the trajectory only a little, so the planner leans on the map, the route and
-the ego-motion history. A known limit of open-loop evaluation: low error does not prove the
-model reacts to what only cameras can see.
-
-**5. The BEV segmentation head is untrained in the released checkpoint** (training loss
-0.0, normalisation layers at their initial values), so its output (~0.5 everywhere) cannot
-be used to inspect what the model sees.
-
-**6. Speed: ~24 s per moment (~0.04 FPS)** on an RTX 5060 Laptop in FP32, ~2.3 GB GPU
+**4. Speed: ~24 s per moment (~0.04 FPS)** on an RTX 5060 Laptop in FP32, ~2.3 GB GPU
 memory. The FPS tables in the AutoE2E repo (19–76 FPS) are for lighter SwinV2/ConvNeXt
 configurations without the BEVFormer T8 history, not for the released checkpoint.
 
