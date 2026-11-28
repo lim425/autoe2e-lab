@@ -47,7 +47,13 @@ the wrong branch or roundabout exit.
 (0.69 m with vs 0.76 m without on one drive).
 Details: [`experiments/route_on_off`](experiments/route_on_off/README.md).
 
-**4. Speed: ~24 s per moment (~0.04 FPS)** on an RTX 5060 Laptop in FP32, ~2.3 GB GPU
+**4. The map helps more than the route** (0.69 m with vs 0.83 m without on one drive;
+better at 69 % of moments). Without it the model misses curves it cannot see from the
+cameras alone. Note the model was trained with a map, so this shows it relies on the map,
+not how a map-free model would do.
+Details: [`experiments/map_on_off`](experiments/map_on_off/README.md).
+
+**5. Speed: ~24 s per moment (~0.04 FPS)** on an RTX 5060 Laptop in FP32, ~2.3 GB GPU
 memory. The FPS tables in the AutoE2E repo (19–76 FPS) are for lighter SwinV2/ConvNeXt
 configurations without the BEVFormer T8 history, not for the released checkpoint.
 

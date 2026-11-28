@@ -148,3 +148,53 @@ def predict_route_ablation(model: AutoE2E, batch: dict, cfg: Config, device: str
     return {"with_route": _to_path(with_route, speed),
             "without_route": _to_path(without_route, speed),
             "image_bev": image_bev}
+
+
+@torch.no_grad()
+def predict_navigation_ablation(model: AutoE2E, batch: dict, cfg: Config, setups: dict,
+                                device: str = "cuda") -> dict:
+    """Same moment, one answer per setup with the map and/or the route switched off.
+
+    setups: {name: {"map": bool, "route": bool}}. False switches that input off with the
+    model's own validity gate (map_valid / route_valid = False multiplies it by 0). True
+    keeps the dataset's input (and its own validity flag).
+
+    The camera top-down picture (image BEV) is built from the cameras only, BEFORE the map
+    and route are mixed in. So it is computed once (a full pass with map and route as in the
+    dataset) and reused for every setup, which skips the slow camera part.
+    Returns {name: {"controls", "pred_xy"}, "image_bev": tensor}.
+    """
+    batch = apply_input_rules(batch, cfg)
+    dev = torch.device(device)
+    projection, geometry_type = resolve_reactive_batch_projection(batch, None, "pseudo", device=dev)
+    front_projection = resolve_reactive_front_projection(batch, geometry_type, device=dev, required=True)
+    history_tiles, history_projections = resolve_reactive_camera_history(
+        batch, geometry_type, device=dev, required=True
+    )
+    inputs = (batch["visual_tiles"], batch["map_context"], batch["visual_history"], batch["egomotion_history"])
+    common = dict(route_mask=batch["route_mask"], mode="infer",
+                  compute_bev_segmentation=False, compute_route_reconstruction=False)
+
+    # Full pass, map and route as in the dataset; keep the camera top-down picture.
+    _, aux = model(
+        *inputs, map_valid=batch["map_valid"], route_valid=batch["route_valid"],
+        projection=projection, geometry_type=geometry_type,
+        camera_history_tiles=history_tiles, history_projections=history_projections,
+        front_camera_tile=batch.get("front_camera_tile"), front_projection=front_projection,
+        return_auxiliary=True, return_image_bev=True, **common,
+    )
+    image_bev = aux["_evaluation_image_bev"]
+
+    out = {"image_bev": image_bev}
+    off = torch.zeros_like(batch["map_valid"], dtype=torch.bool)
+    for name, use in setups.items():
+        controls = model(
+            *inputs,
+            map_valid=batch["map_valid"] if use["map"] else off,
+            route_valid=batch["route_valid"] if use["route"] else off,
+            precomputed_image_bev=image_bev, **common,
+        )
+        if isinstance(controls, tuple):
+            controls = controls[0]
+        out[name] = _to_path(controls, batch["initial_speed_mps"])
+    return out

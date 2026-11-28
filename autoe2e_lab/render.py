@@ -66,8 +66,8 @@ ORANGE = (255, 150, 30)
 
 
 def camera_view(raw_sample: dict, pred_xy, gt_xy, valid, ground_z: float, cam: int = 0,
-                extra=()) -> Image.Image:
-    """Front camera (native resolution) with human (purple) and model (green) bands.
+                extra=(), pred_color=GREEN) -> Image.Image:
+    """Front camera (native resolution) with human (purple) and model (green by default) bands.
 
     extra: optional [(xy_m, rgb_color), ...] drawn first (underneath), e.g. a second prediction.
     """
@@ -77,7 +77,7 @@ def camera_view(raw_sample: dict, pred_xy, gt_xy, valid, ground_z: float, cam: i
     for xy, color in extra:
         draw_band(img, matrix, xy, color, ground_z)
     draw_band(img, matrix, gt_xy[valid], PURPLE, ground_z)
-    draw_band(img, matrix, pred_xy, GREEN, ground_z)
+    draw_band(img, matrix, pred_xy, pred_color, ground_z)
     return img.convert("RGB")
 
 
@@ -96,7 +96,7 @@ def bev_background(map_context: np.ndarray, route_mask: np.ndarray) -> np.ndarra
 
 
 def plot_bev(ax, sample: dict, pred_xy, gt_xy, valid, zoom: bool = True,
-             pred_label: str = "AutoE2E", extra=()):
+             pred_label: str = "AutoE2E", extra=(), pred_color=GREEN):
     """Draw the map + paths onto a matplotlib axis. extra: [(xy_m, rgb_color, label), ...]."""
     ax.imshow(bev_background(sample["map_context"].numpy(), sample["route_mask"].numpy()))
     gt_rc = GEOM.ego_to_pixel(gt_xy[valid])
@@ -105,7 +105,7 @@ def plot_bev(ax, sample: dict, pred_xy, gt_xy, valid, zoom: bool = True,
     for xy, color, label in extra:
         rc = GEOM.ego_to_pixel(xy)
         ax.plot(rc[:, 1], rc[:, 0], color=np.array(color) / 255, lw=2.5, label=label)
-    ax.plot(pred_rc[:, 1], pred_rc[:, 0], color=np.array(GREEN) / 255, lw=2.5, label=pred_label)
+    ax.plot(pred_rc[:, 1], pred_rc[:, 0], color=np.array(pred_color) / 255, lw=2.5, label=pred_label)
     ax.plot(GEOM.ego_anchor_col, GEOM.ego_anchor_row, "r^", ms=10)
     if zoom:
         ax.set_xlim(GEOM.ego_anchor_col - 45, GEOM.ego_anchor_col + 45)
