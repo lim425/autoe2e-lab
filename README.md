@@ -90,7 +90,7 @@ outputs/kitscenes_val/
 ├── route_scan.csv       list of all drives (from scripts/tools/scan_routes.py)
 ├── basics/              pictures and videos from scripts/basics/
 ├── route_on_off/        one experiment: <part>/ folders + summary_<rate>.csv
-├── camera_count/
+├── map_on_off/
 └── sanity_checks/
 ```
 
@@ -176,7 +176,7 @@ python scripts/basics/04_make_video.py --part <part>   # video at 10 Hz (every m
 
 # Experiments: one or more parts each
 python experiments/route_on_off/run.py --part <part> [<part> ...]   # with vs without route
-python experiments/camera_count/run.py --part <part> [<part> ...]   # 6 vs 3 vs 1 vs 0 cameras
+python experiments/map_on_off/run.py --part <part> [<part> ...]     # with vs without map
 python experiments/sanity_checks/run.py --part <part>               # break things on purpose
 
 # Tools
@@ -185,8 +185,7 @@ python scripts/tools/scan_routes.py             # which scenes have a route (~2 
 python scripts/tools/publish_results.py         # copy shareable tables/charts to results/
 ```
 
-`--step N` uses every Nth moment (default 1 = every moment = 10 Hz; `camera_count`
-defaults to 10 = 1 Hz because it runs the model 4 times per moment). Output names carry
+`--step N` uses every Nth moment (default 1 = every moment = 10 Hz). Output names carry
 the rate (`..._10hz.mp4`, `..._1hz.csv`), so runs at different rates never overwrite each
 other. Predictions are cached per moment, so a stopped run continues where it left off,
 and a 10 Hz run reuses the moments a 1 Hz run already computed.

@@ -7,7 +7,6 @@ distance between the predicted and the human's real path over the next 3 s.
 | Experiment | Question | Status | Main result |
 |---|---|---|---|
 | [`route_on_off`](route_on_off/README.md) | Does the model use the route? | ✅ done: 1 drive, 10 Hz | 0.69 m with route vs 0.76 m without |
-| [`camera_count`](camera_count/README.md) | How much do fewer cameras hurt? | ⏸ script ready, to run | n/a |
 | [`sanity_checks`](sanity_checks/README.md) | Does the setup react as it should when broken on purpose? | ✅ done: 1 drive, 3 moments | all cameras black: 0.56 → 0.72 m |
 | [`map_on_off`](map_on_off/README.md) | Does the model use the map? | ✅ done: 1 drive, 10 Hz | 0.69 m with map vs 0.83 m without |
 
