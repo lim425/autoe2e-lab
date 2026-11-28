@@ -33,15 +33,15 @@ between the predicted and the real path over the next 3 s. Few drives were teste
 treat these as observations, not statistics. Every experiment, its method and its full
 findings: [`experiments/`](experiments/README.md). Raw numbers and charts: [`results/`](results/).
 
-**1. Accuracy is in line with the authors.** Mean ADE @ 3 s, every moment evaluated:
-0.78 m on a 2 s drive (20 moments) and 0.69 m on a 34 s drive (`part-d646a7f28b51e27f`,
-340 moments). The authors report 0.744 m on 202 keyframes of the full validation set.
-Errors are smallest on straight roads and largest in tight turns (up to 1.85 m).
+**1. Accuracy is in line with the authors.** Mean ADE @ 3 s: 0.69 m on a 34 s drive
+(`part-d646a7f28b51e27f`, all 340 moments at 10 Hz). The authors report 0.744 m on 202
+keyframes of the full validation set. Errors are smallest when driving fast on fairly
+straight road (0.34 m at 30–40 km/h) and largest in slow, tight turns (up to 1.85 m).
 
 **2. Route data is missing for 17 of 140 validation drives**, including the 5 longest
 (`scripts/tools/scan_routes.py`, [`route_scan.csv`](results/kitscenes_val/route_scan.csv)).
-On those drives the model has to guess at junctions; in earlier runs it sometimes took
-the wrong branch or roundabout exit.
+On those drives the model gets no route, so at junctions it has to guess which way to go
+(see Finding 3 for how much the route helps when it is there).
 
 **3. The route helps a little on average, a lot at turns, and sometimes too much**
 (0.69 m with vs 0.76 m without on one drive).
