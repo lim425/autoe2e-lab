@@ -4,7 +4,7 @@ For each scene, fetch only the first ~2 MB of its shard (.tar) from Hugging Face
 first sample's navigation_meta.json, and read its route_valid flag. That flag is exactly
 what the model's input pipeline uses to switch the route input on or off.
 
-    python scripts/scan_routes.py          # writes outputs/<config>/route_scan.csv
+    python scripts/tools/scan_routes.py          # writes outputs/<config>/route_scan.csv
 
 Note: only the FIRST moment of each scene is checked. Verify a scene fully after downloading.
 """

@@ -1,7 +1,7 @@
 """Run the model on ONE sample: print its error and draw camera + map views.
 
-    python scripts/03_infer_one_sample.py          # sample 0 of the default scene
-    python scripts/03_infer_one_sample.py 10       # sample 10
+    python scripts/basics/03_infer_one_sample.py          # sample 0 of the default scene
+    python scripts/basics/03_infer_one_sample.py 10       # sample 10
 """
 import sys
 import time
@@ -42,7 +42,7 @@ print(f"Error at the 3 s point:       {err[n3 - 1]:.2f} m")
 print("First 5 predicted steps [accel m/s², curvature 1/m]:")
 print(np.round(controls[:5], 3))
 
-out = cfg.output_dir / "single"
+out = cfg.output_dir / "basics" / "single"
 out.mkdir(parents=True, exist_ok=True)
 fig, (ax_cam, ax_bev) = plt.subplots(1, 2, figsize=(15, 8), gridspec_kw={"width_ratios": [1.6, 1]})
 ax_cam.imshow(camera_view(raw, pred_xy, gt_xy, valid, cfg.ground_z_m, cfg.front_camera_index))

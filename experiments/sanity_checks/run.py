@@ -3,8 +3,12 @@
 If the green line were faked, or the setup were wrong, these tests would come out
 differently than expected.
 
-    python scripts/06_sanity_checks.py                                   # 3 moments, default drive
-    python scripts/06_sanity_checks.py --part part-xxxx --moments 0 50 100
+    python experiments/sanity_checks/run.py                              # 3 moments, default drive
+    python experiments/sanity_checks/run.py --part part-xxxx --moments 0 50 100
+
+Outputs (outputs/<config>/sanity_checks/<part>/):
+  results_checks.csv   error of every test at every moment
+  <moment>.png         top-down view with every test's prediction
 
 Tests per moment:
   1. normal           trained model, real inputs                 -> small error
@@ -15,6 +19,7 @@ Tests per moment:
   6. first step       first predicted point vs speed x 0.1 s     -> about equal
 """
 import argparse
+import csv
 
 import matplotlib
 
@@ -25,6 +30,7 @@ import torch  # noqa: E402
 
 from autoe2e_lab.config import load_config  # noqa: E402
 from autoe2e_lab.data import PackedScene  # noqa: E402
+from autoe2e_lab.experiment import ade3, experiment_dir  # noqa: E402
 from autoe2e_lab.model import load_model, predict, to_batch  # noqa: E402
 from autoe2e_lab.render import GEOM, bev_background  # noqa: E402
 
@@ -35,17 +41,12 @@ args = parser.parse_args()
 
 cfg = load_config()
 scene = PackedScene(cfg.dataset_dir, args.part)
-out_dir = cfg.output_dir / "sanity_checks"
+out_dir = experiment_dir(cfg, "sanity_checks") / args.part
 out_dir.mkdir(parents=True, exist_ok=True)
 
 # ImageNet colour normalisation used by the data loader: a black pixel (0) becomes -mean/std.
 BLACK = torch.tensor([-0.485 / 0.229, -0.456 / 0.224, -0.406 / 0.225]).view(3, 1, 1)
 SHUFFLE = [3, 4, 5, 0, 1, 2]  # front <-> rear-left, left <-> rear, right <-> rear-right
-
-
-def ade3(pred_xy, gt_xy, valid):
-    n3 = int(valid[:30].sum())
-    return float(np.linalg.norm(pred_xy - gt_xy, axis=1)[:n3].mean())
 
 
 def black_cameras(sample: dict) -> dict:
@@ -114,8 +115,14 @@ for m in args.moments:
     ax.legend(loc="lower right", fontsize=9)
     ax.set_title(f"Sanity checks, t = {m / 10:.1f} s\n(error over the next 3 s)")
     fig.tight_layout()
-    fig.savefig(out_dir / f"{args.part}_{m:04d}.png", dpi=90)
+    fig.savefig(out_dir / f"{m:04d}.png", dpi=90)
     plt.close(fig)
+
+with (out_dir / "results_checks.csv").open("w", newline="") as f:
+    w = csv.writer(f)
+    w.writerow(["moment", *results])
+    for k, m in enumerate(args.moments):
+        w.writerow([m, *(f"{results[name][k][1]:.4f}" for name in results)])
 
 print("\nAVERAGE ERROR OVER THE NEXT 3 s (lower = better)")
 for name, rows in results.items():

@@ -1,7 +1,7 @@
 """List the scenes in the dataset, or download one scene from Hugging Face.
 
-    python scripts/download_scene.py --list                 # 15 longest scenes + sizes
-    python scripts/download_scene.py part-xxxxxxxxxxxxxxxx  # download one scene
+    python scripts/tools/download_scene.py --list                 # 15 longest scenes + sizes
+    python scripts/tools/download_scene.py part-xxxxxxxxxxxxxxxx  # download one scene
 
 Needs shards/manifest.json, which the README's first download step fetches.
 """

@@ -1,6 +1,6 @@
 """Load the released checkpoint and check it fits the code exactly (strict=True).
 
-    python scripts/01_load_checkpoint.py
+    python scripts/basics/01_load_checkpoint.py
 """
 import torch
 

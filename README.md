@@ -30,30 +30,22 @@ Offline replay of recorded data only. Nothing here controls a vehicle.
 All numbers are **open-loop**: the car always follows the recorded human, and at each
 moment the model predicts the next seconds. "Error" is ADE @ 3 s, the average distance
 between the predicted and the real path over the next 3 s. Few drives were tested, so
-treat these as observations, not statistics. Raw numbers and plots: [`results/`](results/).
+treat these as observations, not statistics. Every experiment, its method and its full
+findings: [`experiments/`](experiments/README.md). Raw numbers and charts: [`results/`](results/).
 
-**1. Accuracy is in line with the authors.** Mean ADE @ 3 s on three drives:
-0.78 m (2 s, 20 moments), 0.85 m (31 s, 62 moments), 0.79 m (51 s, 102 moments). The
-authors report 0.744 m on 202 keyframes of the full validation set. The model is very good
-on single-road stretches (0.10–0.20 m) and worst at forks and roundabouts (up to ~2 m).
+**1. Accuracy is in line with the authors.** Mean ADE @ 3 s, every moment evaluated:
+0.78 m on a 2 s drive (20 moments) and 0.69 m on a 34 s drive (`part-d646a7f28b51e27f`,
+340 moments). The authors report 0.744 m on 202 keyframes of the full validation set.
+Errors are smallest on straight roads and largest in tight turns (up to 1.85 m).
 
 **2. Route data is missing for 17 of 140 validation drives**, including the 5 longest
-(`scripts/scan_routes.py`). On those drives the model has to guess at junctions and
-sometimes takes the wrong branch or roundabout exit.
+(`scripts/tools/scan_routes.py`, [`route_scan.csv`](results/kitscenes_val/route_scan.csv)).
+On those drives the model has to guess at junctions; in earlier runs it sometimes took
+the wrong branch or roundabout exit.
 
-**3. Route on/off.** Same moments, with the dataset's route and with the route switched off
-through the model's own validity gate. The authors' paper notes this paired comparison is
-not yet published.
-
-| Drive | Moments | With route | Without route | Route helped / hurt |
-|---|---|---|---|---|
-| `part-d646a7f28b51e27f` (34 s, 10 Hz) | 340 | **0.69 m** | 0.76 m | 46% / 31% |
-| `part-8028dd4a50d07877` (31 s, 2 Hz) | 62 | 0.78 m | **0.74 m** | 53% / 29% |
-
-The route clearly changes the output and helps most at turns where there is a choice
-(up to 1.2 m better), but the average gain is small and not consistent between drives. In
-both drives the route sometimes made the model turn too sharply in left turns (worst
-case 2.35 m with route vs 0.37 m without).
+**3. The route helps a little on average, a lot at turns, and sometimes too much**
+(0.69 m with vs 0.76 m without on one drive).
+Details: [`experiments/route_on_off`](experiments/route_on_off/README.md).
 
 **4. Speed: ~24 s per moment (~0.04 FPS)** on an RTX 5060 Laptop in FP32, ~2.3 GB GPU
 memory. The FPS tables in the AutoE2E repo (19–76 FPS) are for lighter SwinV2/ConvNeXt
@@ -62,16 +54,54 @@ configurations without the BEVFormer T8 history, not for the released checkpoint
 ## Layout
 
 ```
-autoe2e_lab/        reusable code
-  upstream.py       finds the AutoE2E clone and checks it is at the right commit
-  config.py         loads configs/*.yaml (everything dataset-specific)
-  data.py           reads scenes in the AutoE2E packed (WebDataset) format
-  model.py          loads the checkpoint; predict() mirrors the authors' evaluation loop
-  render.py         camera projection and drawing
-configs/            one YAML file per dataset
-scripts/            numbered experiments (run from the repo root)
-outputs/            generated pictures and videos (not committed)
+autoe2e_lab/             shared code used by everything
+  upstream.py            finds the AutoE2E clone and checks it is at the right commit
+  config.py              loads configs/*.yaml (everything dataset-specific)
+  data.py                reads scenes ("parts") in the AutoE2E packed (WebDataset) format
+  model.py               loads the checkpoint; predict() mirrors the authors' evaluation loop
+  render.py              camera projection and drawing
+  experiment.py          helpers shared by all experiments (rate, error, summary)
+configs/                 one YAML file per dataset
+scripts/basics/          learning steps 01-04, run in order
+scripts/tools/           helpers: download a scene, scan routes, publish results
+experiments/             one folder per question: run.py + README.md (index: experiments/README.md)
+outputs/                 everything the scripts write (not committed)
+results/                 small tables and charts copied from outputs/ (committed)
 ```
+
+Three rules keep it tidy:
+
+1. **An experiment compares setups and produces error numbers** → `experiments/<name>/`.
+   Everything else → `scripts/`.
+2. **One name everywhere:** `experiments/route_on_off/` writes to
+   `outputs/<dataset>/route_on_off/` and is published to `results/<dataset>/route_on_off/`.
+3. **Paths read dataset → experiment → part:**
+   `outputs/kitscenes_val/route_on_off/part-d646a7f28b51e27f/`. Each experiment also writes
+   `summary_<rate>.csv` next to its part folders, one row per part plus all parts together.
+
+```
+outputs/kitscenes_val/
+├── route_scan.csv       list of all drives (from scripts/tools/scan_routes.py)
+├── basics/              pictures and videos from scripts/basics/
+├── route_on_off/        one experiment: <part>/ folders + summary_<rate>.csv
+├── camera_count/
+└── sanity_checks/
+```
+
+### Where files go: `outputs/` vs `results/`
+
+| | `outputs/` | `results/` |
+|---|---|---|
+| What | Everything the scripts write: pictures, videos, cached predictions, logs | Small tables (CSV) and charts, no camera images |
+| Written by | The scripts, automatically | `scripts/tools/publish_results.py` |
+| On GitHub | No (`.gitignore`) | Yes |
+| If deleted | Re-run the scripts | Re-run `publish_results.py` |
+
+`outputs/` is too big for GitHub and contains KITScenes camera images, so it stays local.
+After an experiment, run `python scripts/tools/publish_results.py` to copy the shareable
+files to `results/` with the same folder layout, then commit `results/`. It copies only
+files with the standard names `summary_*.csv`, `results_*.csv`, `error_over_time_*.png`
+and `average_by_setup_*.png`, so new experiments that use these names are published too.
 
 ## Setup
 
@@ -127,32 +157,39 @@ hf download AutowareFoundation/auto_e2e \
     --local-dir .
 ```
 
-More scenes: `python scripts/download_scene.py --list`, then `python scripts/download_scene.py <part>`.
+More scenes: `python scripts/tools/download_scene.py --list`, then `python scripts/tools/download_scene.py <part>`.
 
 ## Run
 
 ```bash
-python scripts/01_load_checkpoint.py      # weights load with an exact layer match
-python scripts/02_inspect_sample.py       # look at the inputs; no model involved
-python scripts/03_infer_one_sample.py     # one prediction: error + camera/map picture
-python scripts/04_make_video.py --part <part> --step 5     # video at 2 Hz (every 5th moment)
-python scripts/04_make_video.py --part <part> --step 1     # video at 10 Hz (every moment)
-python scripts/05_route_experiment.py --part <part> --step 5   # with vs without route
-python scripts/06_sanity_checks.py        # repeat run, random weights, black/shuffled cameras
-python scripts/07_look_inside.py          # the model's own camera top-down picture
-python scripts/scan_routes.py             # which scenes have a route (reads ~2 MB per scene)
+# Basics: learning steps, run in order
+python scripts/basics/01_load_checkpoint.py   # weights load with an exact layer match
+python scripts/basics/02_inspect_sample.py    # look at the inputs; no model involved
+python scripts/basics/03_infer_one_sample.py  # one prediction: error + camera/map picture
+python scripts/basics/04_make_video.py --part <part>   # video at 10 Hz (every moment)
+
+# Experiments: one or more parts each
+python experiments/route_on_off/run.py --part <part> [<part> ...]   # with vs without route
+python experiments/camera_count/run.py --part <part> [<part> ...]   # 6 vs 3 vs 1 vs 0 cameras
+python experiments/sanity_checks/run.py --part <part>               # break things on purpose
+
+# Tools
+python scripts/tools/download_scene.py <part>   # download one scene
+python scripts/tools/scan_routes.py             # which scenes have a route (~2 MB read per scene)
+python scripts/tools/publish_results.py         # copy shareable tables/charts to results/
 ```
 
-Results are written to `outputs/<config>/`. Videos, CSVs and plots carry the rate in their
-name (`..._2hz.mp4`, `..._10hz.mp4`), so runs at different rates never overwrite each other.
-Predictions are cached per moment and shared between rates: a 10 Hz run reuses every
-moment a 2 Hz run already computed.
+`--step N` uses every Nth moment (default 1 = every moment = 10 Hz; `camera_count`
+defaults to 10 = 1 Hz because it runs the model 4 times per moment). Output names carry
+the rate (`..._10hz.mp4`, `..._1hz.csv`), so runs at different rates never overwrite each
+other. Predictions are cached per moment, so a stopped run continues where it left off,
+and a 10 Hz run reuses the moments a 1 Hz run already computed.
 
 Long runs (hours) are best started detached from the terminal:
 
 ```bash
 mkdir -p outputs/logs
-nohup python scripts/04_make_video.py --part <part> --step 1 > outputs/logs/<name>.log 2>&1 &
+nohup python experiments/route_on_off/run.py --part <part> > outputs/logs/<name>.log 2>&1 &
 tail -f outputs/logs/<name>.log
 ```
 

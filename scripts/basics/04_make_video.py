@@ -4,8 +4,8 @@ Stage 1 (slow, ~25 s per moment on an RTX 5060 laptop): run the model and SAVE
 each prediction. Re-running skips moments that are already saved.
 Stage 2 (fast): draw one picture per moment and join them into videos.
 
-    python scripts/04_make_video.py                        # default scene, every moment
-    python scripts/04_make_video.py --part part-xxxx --step 5
+    python scripts/basics/04_make_video.py                        # default scene, every moment
+    python scripts/basics/04_make_video.py --part part-xxxx
 """
 import argparse
 import time
@@ -27,12 +27,12 @@ parser.add_argument("--config", default=None, help="dataset config (default: kit
 parser.add_argument("--part", default=None, help="scene to use (default: from config)")
 parser.add_argument("--step", type=int, default=1, help="use every Nth moment")
 args = parser.parse_args()
-rate = f"{round(10 / args.step, 2):g}hz".replace(".", "p")  # e.g. 10hz, 2hz: in every output name
+rate = f"{round(10 / args.step, 2):g}hz".replace(".", "p")  # e.g. 10hz, 1hz: in every output name
 
 cfg = load_config(args.config) if args.config else load_config()
 part = args.part or cfg.default_part
 scene = PackedScene(cfg.dataset_dir, part)
-out_dir = cfg.output_dir / "video" / part
+out_dir = cfg.output_dir / "basics" / "video" / part
 pred_dir, frame_dir = out_dir / "predictions", out_dir / "frames"
 pred_dir.mkdir(parents=True, exist_ok=True)
 frame_dir.mkdir(exist_ok=True)

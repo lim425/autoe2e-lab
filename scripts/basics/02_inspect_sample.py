@@ -1,7 +1,7 @@
-"""Open ONE sample and look at it (no model). Pictures go to outputs/<config>/inspect/.
+"""Open ONE sample and look at it (no model). Pictures go to outputs/<config>/basics/inspect/.
 
-    python scripts/02_inspect_sample.py            # sample 0 of the default scene
-    python scripts/02_inspect_sample.py 10         # sample 10
+    python scripts/basics/02_inspect_sample.py            # sample 0 of the default scene
+    python scripts/basics/02_inspect_sample.py 10         # sample 10
 """
 import io
 import json
@@ -23,7 +23,7 @@ cfg = load_config()
 scene = PackedScene(cfg.dataset_dir, cfg.default_part)
 index = int(sys.argv[1]) if len(sys.argv) > 1 else 0
 raw, s = scene.raw(index), scene.decoded(index)
-out = cfg.output_dir / "inspect"
+out = cfg.output_dir / "basics" / "inspect"
 out.mkdir(parents=True, exist_ok=True)
 print(f"Scene has {len(scene)} samples. Showing #{index}: {s['sample_uid']}\n")
 

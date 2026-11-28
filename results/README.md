@@ -1,11 +1,19 @@
 # Results
 
-Small result files copied from `outputs/` (which is not committed). No camera images.
+Small result files copied from `outputs/` (which is not committed) by
+`scripts/tools/publish_results.py`. Tables and charts only: no camera images, no videos.
+The folder layout mirrors `outputs/`: `results/<dataset>/<experiment>/<part>/`.
 
-- `route_experiment/<part>/results_<rate>.csv`: one row per moment. Columns: time in the
-  drive, speed, whether the dataset has a route, upcoming manoeuvre, intersection flag,
-  ADE @ 3 s with route, ADE @ 3 s without route, and the difference (positive = route helped).
-- `route_experiment/<part>/error_over_time_<rate>.png`: both errors along the drive.
+What each experiment's files mean, and what we found: see its README in
+[`experiments/`](../experiments/README.md).
 
-`<rate>` is how many moments per second of driving were evaluated (10hz = every moment,
-2hz = every 5th). Regenerate with `scripts/05_route_experiment.py --part <part> --step 1|5`.
+`<rate>` in a file name is how many moments per second of driving were evaluated
+(10hz = every moment, 1hz = every 10th). "Error" is ADE @ 3 s: the average distance
+between the predicted and the real path over the next 3 s.
+
+| File | What |
+|---|---|
+| `<dataset>/route_scan.csv` | All drives of the dataset: length, size, route and map available, upcoming manoeuvre, why the route is missing (`scripts/tools/scan_routes.py`) |
+| `<dataset>/<experiment>/summary_<rate>.csv` | One row per drive plus all drives together |
+| `<dataset>/<experiment>/<part>/results_<rate>.csv` | One row per moment |
+| `<dataset>/<experiment>/<part>/*.png` | Charts |
